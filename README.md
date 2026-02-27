@@ -1,36 +1,134 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# VC Discovery App
 
-## Getting Started
+A polished VC intelligence web app built with Next.js App Router and Tailwind CSS.
 
-First, run the development server:
+This project helps investors and analysts discover companies, review profiles, add notes, save targets, and enrich company data from public websites.
+
+## Features
+
+- Sidebar app shell with dedicated views:
+- `Companies`
+- `Lists`
+- `Saved Searches`
+- Companies directory:
+- Search and pagination
+- Company profile route (`/companies/[id]`)
+- Company profile:
+- Core company fields (name, website, industry, location, stage)
+- Persistent notes per company (`localStorage`)
+- Save company action (`localStorage`)
+- AI enrichment workflow:
+- Fetches website content
+- Extracts metadata (`title`, `meta description`)
+- Generates structured enrichment output:
+- `summary`
+- `whatTheyDo`
+- `keywords`
+- `signals`
+- `sources`
+- Displays enrichment as responsive cards
+- Client-side caching for enrichment (`localStorage`)
+- Lists management (`/lists`) using `localStorage`
+- Saved searches (`/saved`) using `localStorage`
+
+## Tech Stack
+
+- Next.js 15 (App Router)
+- React 19
+- Tailwind CSS 4
+- OpenAI Node SDK
+- ESLint
+
+## Project Structure
+
+```text
+app/
+  api/enrich/route.js
+  companies/page.js
+  companies/[id]/page.js
+  components/CompanyProfileClient.js
+  components/CompaniesTable.js
+  components/Sidebar.js
+  lists/page.js
+  saved/page.js
+data/
+  companies.json
+```
+
+## Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Create `.env.local` in the project root:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key
+```
+
+3. Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables
 
-## Learn More
+- `OPENAI_API_KEY`: OpenAI API key used by `app/api/enrich/route.js`.
 
-To learn more about Next.js, take a look at the following resources:
+Notes:
+- Keep `.env.local` in project root only.
+- Never commit secrets.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Enrichment Flow
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. User opens a company profile.
+2. Clicks `Enrich Company`.
+3. API route fetches website HTML and extracts metadata.
+4. API sends metadata/content to model and receives structured insights.
+5. UI renders enrichment cards immediately.
+6. Result is cached in `localStorage` for fast reload.
 
-## Deploy on Vercel
+## Example Usage
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Navigate to `/companies`.
+2. Search for a startup and open profile.
+3. Add diligence notes.
+4. Click `Enrich Company` to generate insights.
+5. Save company to your pipeline.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Error Handling
+
+- Friendly UI errors (no raw technical stack traces shown to users).
+- API gracefully falls back to metadata-based enrichment when model calls fail.
+- Loading state always resolves (no stuck spinner).
+
+## Deployment (Vercel)
+
+1. Push repository to GitHub.
+2. Import project in Vercel.
+3. Set environment variable in Vercel project settings:
+- `OPENAI_API_KEY`
+4. Deploy.
+
+Recommended:
+- Run `npm run lint` before each deployment.
+- Ensure `.env.local` is not committed.
+
+## Screenshots
+
+Add screenshots here before submission:
+
+- `Companies page`
+- `Company profile`
+- `AI enrichment cards`
+- `Lists and Saved Searches`
