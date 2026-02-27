@@ -6,7 +6,10 @@ export async function POST(req) {
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
-      return Response.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
+      return Response.json(
+        { error: "Enrichment service is not configured. Set OPENAI_API_KEY in deployment environment variables." },
+        { status: 500 }
+      );
     }
 
     if (!website || typeof website !== "string") {

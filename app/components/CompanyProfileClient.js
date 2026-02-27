@@ -61,7 +61,7 @@ export default function CompanyProfileClient({ company }) {
       const data = await res.json();
 
       if (!res.ok) {
-        setEnrichError("We could not enrich this company right now. Please try again in a bit.");
+        setEnrichError(data?.error || "We could not enrich this company right now. Please try again in a bit.");
         return;
       }
 
