@@ -26,13 +26,13 @@ export default function RootLayout({ children }) {
       >
         <div className="min-h-screen lg:flex">
           <Sidebar />
-          <main className="flex-1">
-            <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 px-6 py-3 backdrop-blur">
-              <Link href="/companies" className="text-sm font-semibold tracking-wide text-slate-700">
+          <main className="flex-1 bg-gradient-to-b from-slate-50 via-slate-50 to-indigo-50/30">
+            <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur">
+              <Link href="/companies" className="text-lg font-semibold tracking-tight text-slate-800">
                 VC Discovery
               </Link>
             </header>
-            <div className="p-4 sm:p-6">{children}</div>
+            <div className="p-4 sm:p-6 lg:p-8">{children}</div>
           </main>
         </div>
       </body>
