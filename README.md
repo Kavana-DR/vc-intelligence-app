@@ -132,3 +132,18 @@ Add screenshots here before submission:
 - `Company profile`
 - `AI enrichment cards`
 - `Lists and Saved Searches`
+
+Note on Enrichment
+
+Due to OpenAI API quota limitations, enrichment is implemented using
+public website metadata extraction instead of OpenAI summarization.
+
+The system fetches the company website and extracts:
+
+• Title
+• Meta description
+• Signals
+• Keywords
+• Source links
+
+This ensures the enrichment feature works reliably without external API limits.
