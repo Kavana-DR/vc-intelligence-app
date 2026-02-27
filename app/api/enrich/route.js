@@ -44,30 +44,29 @@ export async function POST(req) {
 
     const title = extractTitle(html);
     const description = extractMetaDescription(html);
-    const summary = buildSummary(parsedUrl, title, description);
-    const whatTheyDo = buildWhatTheyDo(parsedUrl, title, description);
-    const keywords = buildKeywords(parsedUrl, title, description);
-    const signals = buildSignals(websiteFetchWarning, title, description);
+    const websiteText = extractVisibleText(html);
+    const summary = buildSummary(parsedUrl, title);
+    const whatTheyDo = buildWhatTheyDo(parsedUrl, description, websiteText);
+    const { keywords, signals } = detectVcSignals(websiteText, title, description);
+    const technicalSignals = buildSignals(websiteFetchWarning, title, description);
     const sources = [parsedUrl.toString()];
 
     const result = [
-      `Summary: ${summary}`,
+      "Summary:",
+      summary,
       "",
       "What they do:",
-      ...whatTheyDo.map((item) => `- ${item}`),
+      whatTheyDo,
       "",
       "Keywords:",
-      `- ${keywords.join(", ")}`,
+      ...keywords.map((item) => `- ${item}`),
       "",
       "Signals:",
       ...signals.map((item) => `- ${item}`),
+      ...technicalSignals.map((item) => `- ${item}`),
       "",
       "Sources:",
       ...sources.map((item) => `- ${item}`),
-      "",
-      "Metadata:",
-      `- Title: ${title || "Unavailable"}`,
-      `- Description: ${description || "Unavailable"}`,
     ].join("\n");
 
     return Response.json({ result });
@@ -96,40 +95,75 @@ function sanitizeString(value) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function extractVisibleText(html) {
+  if (!html) return "";
+  return sanitizeString(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+  );
+}
+
 function getDomainKeyword(url) {
   const host = url.hostname.replace(/^www\./, "");
   return host.split(".")[0];
 }
 
-function buildSummary(url, title, description) {
+function buildSummary(url, title) {
   const domain = getDomainKeyword(url);
-  if (description) return `${description} Further validation is recommended from additional public sources.`;
-  if (title) return `${title} appears to be an active company website for ${domain}. Further validation is recommended from additional public sources.`;
-  return `${domain} appears to be an active company domain. Further validation is recommended from additional public sources.`;
+  if (title) return `${title} is a company currently tracked in this VC discovery workflow.`;
+  return `${domain} appears to be an active startup/company website identified for investment research.`;
 }
 
-function buildWhatTheyDo(url, title, description) {
+function buildWhatTheyDo(url, description, websiteText) {
   const domain = getDomainKeyword(url);
-  const titleHint = title ? `Website title suggests focus around: ${title}.` : "Website title is unavailable.";
-  return [
-    description || "Primary positioning could not be confirmed from website metadata.",
-    titleHint,
-    `Operates under the ${domain} brand/domain presence.`,
-    "Public website content is available for diligence review.",
-    "Requires manual validation of product, target users, and business model.",
-  ];
+  if (description) return description;
+
+  const snippet = websiteText.slice(0, 180);
+  if (snippet) return `${snippet}...`;
+
+  return `${domain} has limited public metadata; additional diligence is recommended to confirm product and market focus.`;
 }
 
-function buildKeywords(url, title, description) {
-  const domain = getDomainKeyword(url);
-  const words = `${title || ""} ${description || ""}`
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((token) => token.length > 3);
+function detectVcSignals(text, title, description) {
+  const corpus = `${text} ${title || ""} ${description || ""}`.toLowerCase();
+  const keywords = [];
+  const signals = [];
 
-  const unique = Array.from(new Set([domain, ...words]));
-  return unique.slice(0, 5).length ? unique.slice(0, 5) : [domain, "startup", "company", "product", "market"];
+  const add = (keyword, signal) => {
+    if (!keywords.includes(keyword)) keywords.push(keyword);
+    if (!signals.includes(signal)) signals.push(signal);
+  };
+
+  if (includesAny(corpus, ["fintech", "payment", "payments"])) {
+    add("Fintech", "💳 Payments infrastructure");
+  }
+  if (includesAny(corpus, ["api", "developer", "sdk"])) {
+    add("Developer Platform", "⚙️ Developer ecosystem");
+  }
+  if (includesAny(corpus, ["ai", "artificial intelligence", "machine learning", "ml"])) {
+    add("Artificial Intelligence", "🧠 AI-driven product");
+  }
+  if (includesAny(corpus, ["saas", "software as a service", "subscription"])) {
+    add("SaaS", "☁️ Recurring software model");
+  }
+  if (includesAny(corpus, ["productivity", "workspace", "collaboration"])) {
+    add("Productivity", "📊 Productivity software");
+  }
+  if (includesAny(corpus, ["platform"])) {
+    add("Platform", "🧩 Platform business model");
+  }
+
+  if (keywords.length === 0) {
+    keywords.push("Early Signal");
+    signals.push("🔎 Limited explicit signals detected from public metadata");
+  }
+
+  return {
+    keywords: keywords.slice(0, 5),
+    signals: signals.slice(0, 5),
+  };
 }
 
 function buildSignals(fetchWarning, title, description) {
@@ -138,4 +172,8 @@ function buildSignals(fetchWarning, title, description) {
     title ? "Title metadata is present." : "Title metadata is missing.",
     description ? "Meta description is present." : "Meta description is missing.",
   ];
+}
+
+function includesAny(text, words) {
+  return words.some((word) => text.includes(word));
 }

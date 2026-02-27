@@ -188,9 +188,7 @@ export default function CompanyProfileClient({ company }) {
             <p className="text-sm text-amber-900">{enrichError}</p>
           </div>
         ) : typeof enrichData === "string" ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm text-slate-800 whitespace-pre-wrap">{enrichData}</p>
-          </div>
+          <ParsedEnrichmentCards text={enrichData} />
         ) : enrichData ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <InfoCard title="Summary" content={enrichData.summary || "Not available yet."} />
@@ -220,6 +218,7 @@ function InfoCard({ title, content }) {
   const items = Array.isArray(content) ? content.filter(Boolean) : [];
   const accentClasses = getAccentClasses(title);
   const icon = getCardIcon(title);
+  const isBadgeCard = title === "Keywords" || title === "Signals";
 
   return (
     <article
@@ -230,6 +229,18 @@ function InfoCard({ title, content }) {
         {title}
       </h3>
       {items.length > 0 ? (
+        isBadgeCard ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {items.map((item, index) => (
+              <span
+                key={`${title}-${index}`}
+                className="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md text-xs font-medium"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : (
         <ul className="mt-3 space-y-1.5 text-sm text-slate-800">
           {items.map((item, index) => (
             <li key={`${title}-${index}`} className="leading-relaxed">
@@ -237,6 +248,7 @@ function InfoCard({ title, content }) {
             </li>
           ))}
         </ul>
+        )
       ) : (
         <p className="mt-3 text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
           {typeof content === "string" && content ? content : "Not available yet."}
@@ -272,4 +284,81 @@ function getCardIcon(title) {
   if (title === "Signals") return "G";
   if (title === "Sources") return "R";
   return "M";
+}
+
+function ParsedEnrichmentCards({ text }) {
+  const sections = parseEnrichmentText(text);
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <InfoCard title="Summary" content={sections.summary || "Not available yet."} />
+      <InfoCard title="What they do" content={sections.whatTheyDo || "Not available yet."} />
+      <InfoCard title="Keywords" content={sections.keywords} />
+      <InfoCard title="Signals" content={sections.signals} />
+      <InfoCard title="Sources" content={sections.sources} />
+    </div>
+  );
+}
+
+function parseEnrichmentText(text) {
+  const lines = String(text || "").split("\n");
+  const sections = {
+    summary: "",
+    whatTheyDo: "",
+    keywords: [],
+    signals: [],
+    sources: [],
+  };
+
+  let current = "";
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+
+    if (/^summary:/i.test(trimmed)) {
+      current = "summary";
+      const inline = trimmed.replace(/^summary:\s*/i, "");
+      if (inline) sections.summary = inline;
+      return;
+    }
+    if (/^what they do:/i.test(trimmed)) {
+      current = "whatTheyDo";
+      const inline = trimmed.replace(/^what they do:\s*/i, "");
+      if (inline) sections.whatTheyDo = inline;
+      return;
+    }
+    if (/^keywords:/i.test(trimmed)) {
+      current = "keywords";
+      return;
+    }
+    if (/^signals:/i.test(trimmed)) {
+      current = "signals";
+      return;
+    }
+    if (/^sources:/i.test(trimmed)) {
+      current = "sources";
+      return;
+    }
+
+    if (trimmed.startsWith("-")) {
+      const value = trimmed.replace(/^-+\s*/, "");
+      if (current === "keywords") sections.keywords.push(value);
+      if (current === "signals") sections.signals.push(value);
+      if (current === "sources") sections.sources.push(value);
+      if (current === "whatTheyDo") {
+        sections.whatTheyDo = sections.whatTheyDo ? `${sections.whatTheyDo} ${value}` : value;
+      }
+      return;
+    }
+
+    if (current === "summary") {
+      sections.summary = sections.summary ? `${sections.summary} ${trimmed}` : trimmed;
+    }
+    if (current === "whatTheyDo") {
+      sections.whatTheyDo = sections.whatTheyDo ? `${sections.whatTheyDo} ${trimmed}` : trimmed;
+    }
+  });
+
+  return sections;
 }
