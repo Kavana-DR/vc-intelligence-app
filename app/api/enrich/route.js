@@ -1,16 +1,6 @@
-import OpenAI from "openai";
-
 export async function POST(req) {
   try {
     const { website } = await req.json();
-    const apiKey = process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      return Response.json(
-        { error: "Enrichment service is not configured. Set OPENAI_API_KEY in deployment environment variables." },
-        { status: 500 }
-      );
-    }
 
     if (!website || typeof website !== "string") {
       return Response.json({ error: "Website is required" }, { status: 400 });
@@ -54,84 +44,33 @@ export async function POST(req) {
 
     const title = extractTitle(html);
     const description = extractMetaDescription(html);
+    const summary = buildSummary(parsedUrl, title, description);
+    const whatTheyDo = buildWhatTheyDo(parsedUrl, title, description);
+    const keywords = buildKeywords(parsedUrl, title, description);
+    const signals = buildSignals(websiteFetchWarning, title, description);
+    const sources = [parsedUrl.toString()];
 
-    const baseResult = {
-      summary: "",
-      whatTheyDo: [],
-      keywords: [],
-      signals: [],
-      sources: [parsedUrl.toString()],
-      metadata: {
-        title: title || "Unavailable",
-        description: description || "Unavailable",
-      },
-    };
+    const result = [
+      `Summary: ${summary}`,
+      "",
+      "What they do:",
+      ...whatTheyDo.map((item) => `- ${item}`),
+      "",
+      "Keywords:",
+      `- ${keywords.join(", ")}`,
+      "",
+      "Signals:",
+      ...signals.map((item) => `- ${item}`),
+      "",
+      "Sources:",
+      ...sources.map((item) => `- ${item}`),
+      "",
+      "Metadata:",
+      `- Title: ${title || "Unavailable"}`,
+      `- Description: ${description || "Unavailable"}`,
+    ].join("\n");
 
-    const openai = new OpenAI({
-      apiKey,
-    });
-
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: [
-              "You are a VC research analyst.",
-              "Return valid JSON only with keys: summary, whatTheyDo, keywords, signals, sources.",
-              "Constraints: summary string (max 2 sentences), whatTheyDo array of 3-5 strings, keywords array of 5 strings, signals array of 3 strings, sources array of URLs/labels.",
-            ].join(" "),
-          },
-          {
-            role: "user",
-            content: `Website URL: ${parsedUrl.toString()}
-Website title: ${title || "Unavailable"}
-Meta description: ${description || "Unavailable"}
-Website fetch status: ${websiteFetchWarning || "Fetched successfully"}
-Website content:
-${html ? html.slice(0, 7000) : "No HTML captured. Use only metadata and URL context."}`,
-          },
-        ],
-      });
-
-      const raw = completion.choices[0]?.message?.content || "{}";
-      const parsed = JSON.parse(raw);
-
-      const result = {
-        ...baseResult,
-        summary: sanitizeString(parsed.summary) || buildFallbackSummary(parsedUrl, title, description),
-        whatTheyDo: sanitizeStringArray(parsed.whatTheyDo, 5),
-        keywords: sanitizeStringArray(parsed.keywords, 5),
-        signals: sanitizeStringArray(parsed.signals, 5),
-        sources: sanitizeStringArray(parsed.sources, 5).length
-          ? sanitizeStringArray(parsed.sources, 5)
-          : baseResult.sources,
-      };
-
-      if (websiteFetchWarning) {
-        result.signals = [...result.signals, websiteFetchWarning].slice(0, 5);
-      }
-
-      return Response.json({ result });
-    } catch (aiError) {
-      console.error("ENRICH MODEL ERROR:", aiError);
-
-      const result = {
-        ...baseResult,
-        summary: buildFallbackSummary(parsedUrl, title, description),
-        whatTheyDo: buildFallbackWhatTheyDo(parsedUrl, description),
-        keywords: buildFallbackKeywords(parsedUrl, title, description),
-        signals: [
-          websiteFetchWarning || "Website fetched successfully",
-          "AI enrichment temporarily unavailable; fallback generated from metadata.",
-          "Retry enrichment later for richer model-generated insights.",
-        ],
-      };
-
-      return Response.json({ result });
-    }
+    return Response.json({ result });
   } catch (error) {
     console.error("ENRICH ERROR:", error);
     return Response.json({ error: "Unable to enrich this company right now. Please try again." }, { status: 500 });
@@ -157,38 +96,31 @@ function sanitizeString(value) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function sanitizeStringArray(value, maxLen) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => sanitizeString(String(item)))
-    .filter(Boolean)
-    .slice(0, maxLen);
-}
-
 function getDomainKeyword(url) {
   const host = url.hostname.replace(/^www\./, "");
   return host.split(".")[0];
 }
 
-function buildFallbackSummary(url, title, description) {
+function buildSummary(url, title, description) {
   const domain = getDomainKeyword(url);
   if (description) return `${description} Further validation is recommended from additional public sources.`;
   if (title) return `${title} appears to be an active company website for ${domain}. Further validation is recommended from additional public sources.`;
   return `${domain} appears to be an active company domain. Further validation is recommended from additional public sources.`;
 }
 
-function buildFallbackWhatTheyDo(url, description) {
+function buildWhatTheyDo(url, title, description) {
   const domain = getDomainKeyword(url);
+  const titleHint = title ? `Website title suggests focus around: ${title}.` : "Website title is unavailable.";
   return [
     description || "Primary positioning could not be confirmed from website metadata.",
+    titleHint,
     `Operates under the ${domain} brand/domain presence.`,
     "Public website content is available for diligence review.",
     "Requires manual validation of product, target users, and business model.",
-    "Likely early-stage digital business based on web footprint.",
   ];
 }
 
-function buildFallbackKeywords(url, title, description) {
+function buildKeywords(url, title, description) {
   const domain = getDomainKeyword(url);
   const words = `${title || ""} ${description || ""}`
     .toLowerCase()
@@ -197,5 +129,13 @@ function buildFallbackKeywords(url, title, description) {
     .filter((token) => token.length > 3);
 
   const unique = Array.from(new Set([domain, ...words]));
-  return unique.slice(0, 5);
+  return unique.slice(0, 5).length ? unique.slice(0, 5) : [domain, "startup", "company", "product", "market"];
+}
+
+function buildSignals(fetchWarning, title, description) {
+  return [
+    fetchWarning || "Website fetched successfully for enrichment.",
+    title ? "Title metadata is present." : "Title metadata is missing.",
+    description ? "Meta description is present." : "Meta description is missing.",
+  ];
 }

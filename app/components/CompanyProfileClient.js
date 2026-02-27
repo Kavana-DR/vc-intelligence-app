@@ -183,6 +183,10 @@ export default function CompanyProfileClient({ company }) {
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-900">{enrichError}</p>
           </div>
+        ) : typeof enrichData === "string" ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm text-slate-800 whitespace-pre-wrap">{enrichData}</p>
+          </div>
         ) : enrichData ? (
           <div className="grid gap-4 md:grid-cols-2">
             <InfoCard title="Summary" content={enrichData.summary || "Not available yet."} />
