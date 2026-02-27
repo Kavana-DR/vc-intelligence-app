@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Stripe",
+    "website": "https://stripe.com",
+    "industry": "Fintech",
+    "location": "USA",
+    "stage": "Series C"
+  },
+  {
+    "id": 2,
+    "name": "Notion",
+    "website": "https://notion.so",
+    "industry": "Productivity",
+    "location": "USA",
+    "stage": "Series B"
+  },
+  {
+    "id": 3,
+    "name": "Razorpay",
+    "website": "https://razorpay.com",
+    "industry": "Fintech",
+    "location": "India",
+    "stage": "Series D"
+  }
+]
